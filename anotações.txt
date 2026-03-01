@@ -1,0 +1,74 @@
+## Etapa 1: Coleta, Mapeamento e Verificação Inicial dos Dados
+
+**1. Coleta e Leitura da Base**
+1.655.637 instancias
+121 atributos
+* **Fonte:** Dados de Dengue (2025) baixados via script diretamente do repositório do Ministério da Saúde (DATASUS/SINAN).
+
+Essa base de dados contém atributos gerais para todos os casos possíveis tratados pelo sus, e foi filtrada pelo ano de 2025 e pelo ID_AGRAVO
+
+A base de dados é bastante heterogênea pos nela há uma grande diversidade de variáveis, perfis e comportamentos registrados.
+
+A base da dados tem tanto atributos ausentes(não preenchidos) como ignorados(registrados como zero).
+
+Exige uma extensa limpeza
+
+Apagar as instancias que não possuem dados sobre escolaridade pois irá interferir na análise socioeconômica. Nossa instancia é muito grande e permite esse corte da base, mesmo que a metade.
+
+Escolaridade foi bastante ignorada e ausente(~50%) 
+Raça foi bastante ignorada(~15)
+
+Algumas variáveis refletem bem o local de impacto social e epidemiológico real da doença.
+
+Como:
+
+ID_MN_RESI: Código do Município de residência do paciente.
+
+SG_UF: Sigla do Estado (UF) de residência.
+
+ID_RG_RESI: Regional de Saúde administrativa correspondente ao município de residência.
+
+O ID_MN_RESI é de fato o padrão mais adotado e reconhecido pois outras variáveis
+
+
+>>>Para correlacionar as doenças negligenciadas com o baixo IDH de forma precisa, a infraestrutura da cidade (fator socioeconômico) precisa ser a mesma onde a doença foi contraída (fator epidemiológico). A abordagem metodologicamente mais sólida é:
+
+Fazer a ligação (join/cruzamento) dos dados do DATASUS com os dados do IBGE usando o id_mn_resi.
+
+Filtrar a sua base de dados mantendo apenas os registros onde a variável tpautocto for igual a 1-Sim.
+
+Dessa forma, você garante que está analisando pessoas que moram naquele município específico e adoeceram por causa das condições daquele exato local, eliminando do seu cálculo os casos "importados" (pessoas que viajaram, se infectaram em outra cidade com baixo IDH, mas foram contabilizadas na cidade onde moram). <<<<<
+
+
+Manter apenas registros onde a variável TPAUTOCTO for igual a 1
+
+Como id_mn_resi será o atributo geográfico chave, 
+ para a agregação epidemiológica e como nossa ela está bem "presente" na nossa base de dados, já podemos remover todas as instancias que não possuem essa variável(7 apenas)
+
+Excluir também as instancias que não tem escolaridade ou raça
+---------------------------------------------------------------------------------
+Já outras semelhantes como:
+    'ID_MUNICIP': 'Município da Notificação (ID_MUNICIP)',
+    'SG_UF_NOT': 'UF da Notificação (SG_UF_NOT)',
+    'ID_REGIONA': 'Regional de Saúde da Notificação (ID_REGIONA)',
+    'ID_UNIDADE': 'Unidade de Saúde Notificadora (ID_UNIDADE)',
+    'COMUNINF': 'Município Provável da Infecção (COMUNINF)',
+    'COUFINF': 'UF Provável da Infecção (COUFINF)'
+Além de terem ausência 
+
+Alguns campos ainda existe nas bases do DATASUS justamente para manter a compatibilidade com registros históricos ou para protocolos específicos que ainda utilizam os critérios de 1997 da OMS.
+
+* **Ajuste de Leitura:** Identificação e correção do separador do arquivo CSV (de `;` para `,`), permitindo o processamento correto de mais de 1.6 milhões de instâncias e 121 atributos.
+
+**2. Enriquecimento e Tradução de Variáveis**
+* **Tradução Geográfica:** Criação da variável `NM_MUNICIPIO` através do cruzamento do código IBGE do Município de Residência (`ID_MN_RESI`) com uma base externa. O foco foi mantido no local de moradia (e não no local de notificação ou internação) para refletir com precisão a incidência no perfil da população local.
+* **Mapeamento Categórico:** Tradução dos códigos numéricos do dicionário do SINAN para variáveis socioeconômicas (Escolaridade, Raça, Sexo), sinais clínicos (Febre, Mialgia, etc.) e desfechos (Classificação Final e Evolução).
+
+**3. Diagnóstico de Qualidade e Valores Faltantes**
+* **Tratamento de "Nulos Escondidos":** Identificação de que o código `9` (e `I` para sexo) representa a categoria "Ignorado" (falha na coleta da informação durante a notificação). Esses valores foram convertidos para `NaN` para calcular o real percentual de ausência.
+* **Análise Crítica de Ausência:** O ranking dos 70 atributos com mais dados faltantes revelou que variáveis com mais de 90% de ausência são contextualmente irrelevantes para o agrupamento geral, pois representam:
+  * Exames laboratoriais de alta complexidade raramente aplicados na rotina (ex: PRNT).
+  * Campos exclusivos para outros agravos (ex: Chikungunya).
+  * Dados de hospitalização (a vasta maioria dos casos de dengue possui tratamento ambulatorial).
+
+**Conclusão da Etapa:** A base foi padronizada, os ruídos de interpretação foram resolvidos e os dados estão prontos para a etapa de Pré-processamento, que iniciará com a remoção (drop) das variáveis com taxa crítica de ausência e daquelas que não agregam ao contexto socioepidemiológico do problema.
